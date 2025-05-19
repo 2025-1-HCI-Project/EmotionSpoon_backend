@@ -36,80 +36,27 @@ public class DiaryController {
     @Value("${file.diary-dir}")
     private String diaryDir;
 
-    @PostMapping("/upload")
+    @PostMapping("/save")
     @Transactional
-    public ResponseEntity<?> uploadDiary(
+    public ResponseEntity<?> saveDiary(
             @RequestPart("dto") DiaryDTO diaryDTO,
             @RequestPart(value = "file", required = false) MultipartFile file
     ) throws IOException {
-
         Member member = memberRepository.findById(diaryDTO.getMemberId())
                 .orElseThrow(() -> new RuntimeException("사용자 없음"));
 
         String storedFileName = null;
-        String fullText = diaryDTO.getDiaryContent();
-
         if (file != null && !file.isEmpty()) {
-            // 경로 준비
             Path storagePath = Paths.get(diaryDir).toAbsolutePath().normalize();
-            if (!Files.exists(storagePath)) {
-                Files.createDirectories(storagePath);
-            }
+            if (!Files.exists(storagePath)) Files.createDirectories(storagePath);
 
-            // 파일 이름 생성 및 경로 설정
             String originalFileName = Objects.requireNonNull(file.getOriginalFilename());
             String fileExtension = originalFileName.substring(originalFileName.lastIndexOf("."));
             storedFileName = UUID.randomUUID() + fileExtension;
             Path filePath = storagePath.resolve(storedFileName);
-
-            // 1. OCR을 위한 바이트 읽기 (먼저)
-            byte[] fileBytes;
-            try (InputStream is = file.getInputStream()) {
-                fileBytes = is.readAllBytes();
-            }
-
-            // 2. FastAPI OCR 서버에 이미지 업로드
-            String fastApiImageUrl = "http://0.0.0.0:5050/upload";
-            HttpHeaders imgHeaders = new HttpHeaders();
-            imgHeaders.setContentType(MediaType.MULTIPART_FORM_DATA);
-
-            ByteArrayResource resource = new ByteArrayResource(fileBytes) {
-                @Override
-                public String getFilename() {
-                    return originalFileName;
-                }
-            };
-
-            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("file", resource);
-            HttpEntity<MultiValueMap<String, Object>> imageRequest = new HttpEntity<>(body, imgHeaders);
-
-            RestTemplate restTemplate = new RestTemplate();
-            ResponseEntity<Map> imgResponse = restTemplate.postForEntity(fastApiImageUrl, imageRequest, Map.class);
-            fullText = (String) imgResponse.getBody().get("text");
-
-            // 3. 파일 저장은 마지막에
             file.transferTo(filePath.toFile());
         }
 
-        // 감정 분석 및 추천곡 요청
-        String fastApiRunUrl = "http://0.0.0.0:5050/run";
-        Map<String, String> payload = new HashMap<>();
-        payload.put("input_data", fullText);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(payload, headers);
-
-        RestTemplate restTemplate = new RestTemplate();
-        ResponseEntity<Map> response = restTemplate.postForEntity(fastApiRunUrl, requestEntity, Map.class);
-
-        String sentiment = (String) response.getBody().get("sentiment");
-        String artist = (String) response.getBody().get("artist");
-        String song = (String) response.getBody().get("song");
-        String url = (String) response.getBody().get("link");
-
-        // Diary 저장
         LocalDateTime diaryDate = LocalDateTime.parse(diaryDTO.getDate() + "T00:00:00");
         Diary diary = new Diary();
         diary.setMember(member);
@@ -118,12 +65,71 @@ public class DiaryController {
         diary.setDiaryContent(diaryDTO.getDiaryContent());
         diary.setFileName(storedFileName);
         diary.setDiaryType((file != null && !file.isEmpty()) ? 1 : 0);
+
+        diaryRepository.save(diary);
+
+        return ResponseEntity.ok(Map.of("diaryId", diary.getId()));
+    }
+
+
+    @PostMapping("/analyze")
+    @Transactional
+    public ResponseEntity<?> analyzeDiary(@RequestBody Map<String, Object> requestBody) {
+        Object idObj = requestBody.get("id");
+
+        if (idObj == null) {
+            return ResponseEntity.badRequest().body("일기 ID가 없습니다.");
+        }
+
+        Long id = Long.parseLong(idObj.toString());
+
+        Diary diary = diaryRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("일기 없음"));
+
+        String fullText = diary.getDiaryContent();
+        if (diary.getFileName() != null) {
+            Path path = Paths.get(diaryDir, diary.getFileName());
+            try {
+                byte[] fileBytes = Files.readAllBytes(path);
+
+                HttpHeaders imgHeaders = new HttpHeaders();
+                imgHeaders.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+                ByteArrayResource resource = new ByteArrayResource(fileBytes) {
+                    @Override
+                    public String getFilename() {
+                        return diary.getFileName();
+                    }
+                };
+
+                MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+                body.add("file", resource);
+                HttpEntity<MultiValueMap<String, Object>> imageRequest = new HttpEntity<>(body, imgHeaders);
+
+                ResponseEntity<Map> ocrRes = new RestTemplate().postForEntity("http://localhost:5050/ocr", imageRequest, Map.class);
+                fullText = (String) ocrRes.getBody().get("text");
+
+            } catch (IOException e) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("OCR 실패: " + e.getMessage());
+            }
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, String>> request = new HttpEntity<>(Map.of("input_data", fullText), headers);
+
+        ResponseEntity<Map> res = new RestTemplate().postForEntity("http://localhost:5050/recommend", request, Map.class);
+
+        String sentiment = (String) res.getBody().get("sentiment");
+        String artist = (String) res.getBody().get("artist");
+        String song = (String) res.getBody().get("song");
+        String url = (String) res.getBody().get("link");
+
         diary.setSentiment(sentiment);
         diaryRepository.save(diary);
 
-        // Playlist 저장
         Playlist playlist = Playlist.builder()
-                .member(member)
+                .member(diary.getMember())
                 .diary(diary)
                 .sentiment(sentiment)
                 .artist(artist)
@@ -132,6 +138,6 @@ public class DiaryController {
                 .build();
         playlistRepository.save(playlist);
 
-        return ResponseEntity.ok("일기 업로드 및 추천곡 저장 완료!");
+        return ResponseEntity.ok("분석 및 추천 저장 완료");
     }
 }
