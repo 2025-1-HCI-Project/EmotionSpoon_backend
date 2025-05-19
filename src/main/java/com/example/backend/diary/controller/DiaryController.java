@@ -123,7 +123,7 @@ public class DiaryController {
         String sentiment = (String) res.getBody().get("sentiment");
         String artist = (String) res.getBody().get("artist");
         String song = (String) res.getBody().get("song");
-        String url = (String) res.getBody().get("link");
+        String link = (String) res.getBody().get("link");
 
         diary.setSentiment(sentiment);
         diaryRepository.save(diary);
@@ -134,7 +134,8 @@ public class DiaryController {
                 .sentiment(sentiment)
                 .artist(artist)
                 .song(song)
-                .url(url)
+                .link(link)
+                .date(diary.getDate())
                 .build();
         playlistRepository.save(playlist);
 

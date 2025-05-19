@@ -5,6 +5,8 @@ import com.example.backend.diary.entity.Diary;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @Setter
@@ -23,7 +25,10 @@ public class Playlist {
 
     private String artist;
 
-    private String url;
+    private String link;
+
+    @Column(nullable = false)
+    private LocalDateTime date;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "m_id")
