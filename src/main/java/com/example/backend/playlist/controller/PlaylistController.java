@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.*;
+
 @RestController
 @RequestMapping("/api/playlist")
 @RequiredArgsConstructor
@@ -14,8 +16,8 @@ public class PlaylistController {
     private final PlaylistService playlistService;
 
     @GetMapping("/{diaryId}")
-    public ResponseEntity<PlaylistDTO> getPlaylist(@PathVariable Long diaryId) {
-        PlaylistDTO dto = playlistService.getPlaylistByDiaryId(diaryId);
+    public ResponseEntity<List<PlaylistDTO>> getPlaylist(@PathVariable Long diaryId) {
+        List<PlaylistDTO> dto = playlistService.getPlaylistByDiaryId(diaryId);
         return ResponseEntity.ok(dto);
     }
 }
