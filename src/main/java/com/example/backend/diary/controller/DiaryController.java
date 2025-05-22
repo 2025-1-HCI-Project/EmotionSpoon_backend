@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/diary")
@@ -122,23 +123,26 @@ public class DiaryController {
         ResponseEntity<Map> res = new RestTemplate().postForEntity("http://localhost:5050/recommend", request, Map.class);
 
         String sentiment = (String) res.getBody().get("sentiment");
-        String artist = (String) res.getBody().get("artist");
-        String song = (String) res.getBody().get("song");
-        String link = (String) res.getBody().get("link");
-
         diary.setSentiment(sentiment);
         diaryRepository.save(diary);
 
-        Playlist playlist = Playlist.builder()
-                .member(diary.getMember())
-                .diary(diary)
-                .sentiment(sentiment)
-                .artist(artist)
-                .song(song)
-                .link(link)
-                .date(diary.getDate())
-                .build();
-        playlistRepository.save(playlist);
+        List<Map<String, String>> rawList = (List<Map<String, String>>) res.getBody().get("playlist");
+        List<Playlist> playlist = rawList.stream().map(map -> {
+            String artist = (String) map.get("artist");
+            String song = (String) map.get("song");
+            String link = (String) map.get("link");
+
+            return Playlist.builder()
+                    .member(diary.getMember())
+                    .diary(diary)
+                    .sentiment(sentiment)
+                    .artist(artist)
+                    .song(song)
+                    .link(link)
+                    .date(diary.getDate())
+                    .build();
+        }).collect(Collectors.toList());
+        playlistRepository.saveAll(playlist);
 
         return ResponseEntity.ok("분석 및 추천 저장 완료");
     }
