@@ -125,10 +125,8 @@ public class DiaryController {
         diary.setSentiment(sentiment);
         diaryRepository.save(diary);
 
-        List<?> rawList = (List<?>) res.getBody().get("playlist");
-        List<Playlist> playlist = rawList.stream().map(item -> {
-            LinkedHashMap<?, ?> map = (LinkedHashMap<?, ?>) item;
-
+        List<Map<String, String>> rawList = (List<Map<String, String>>) res.getBody().get("playlist");
+        List<Playlist> playlist = rawList.stream().map(map -> {
             String artist = (String) map.get("artist");
             String song = (String) map.get("song");
             String link = (String) map.get("link");
