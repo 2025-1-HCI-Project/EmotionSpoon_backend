@@ -1,6 +1,7 @@
 package com.example.backend.diary.controller;
 
 import com.example.backend.diary.dto.DiaryDTO;
+import com.example.backend.diary.dto.DiaryEventDTO;
 import com.example.backend.diary.entity.Diary;
 import com.example.backend.diary.repository.DiaryRepository;
 import com.example.backend.member.entity.Member;
@@ -145,4 +146,29 @@ public class DiaryController {
 
         return ResponseEntity.ok("분석 및 추천 저장 완료");
     }
+
+    @GetMapping("/events")
+    public ResponseEntity<?> getDiaryEvents() {
+        List<Diary> diaries = diaryRepository.findAll();
+        List<DiaryEventDTO> eventList = new ArrayList<>();
+
+        for (Diary diary : diaries) {
+            List<Playlist> playlists = playlistRepository.findAllByDiaryId(diary.getId());
+            Playlist playlist = playlists.isEmpty() ? null : playlists.get(0);
+
+            eventList.add(DiaryEventDTO.builder()
+                    .diaryId(diary.getId())
+                    .date(diary.getDate().toLocalDate().toString())
+                    .title(diary.getContent())
+                    .diary(diary.getDiaryContent())
+                    .diaryType(diary.getDiaryType())
+                    .fileName(diary.getFileName())
+                    .song(playlist != null ? playlist.getSong() : null)
+                    .artist(playlist != null ? playlist.getArtist() : null)
+                    .build());
+        }
+
+        return ResponseEntity.ok(eventList);
+    }
+
 }
