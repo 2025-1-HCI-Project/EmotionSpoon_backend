@@ -17,4 +17,5 @@ public class DiaryEventDTO {
 
     private String song;
     private String artist;
+    private String link;
 }

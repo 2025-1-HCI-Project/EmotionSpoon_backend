@@ -164,6 +164,7 @@ public class DiaryController {
                     .fileName(diary.getFileName())
                     .song(playlist != null ? playlist.getSong() : null)
                     .artist(playlist != null ? playlist.getArtist() : null)
+                    .link(playlist != null ? playlist.getLink() : null)
                     .build();
         }).collect(Collectors.toList());
 
