@@ -73,6 +73,38 @@ public class DiaryController {
         return ResponseEntity.ok(Map.of("diaryId", diary.getId()));
     }
 
+    @PostMapping("/extract")
+    public ResponseEntity<?> extractTextFromImage(@RequestParam("file") MultipartFile file) {
+        // "/analyze"에서 OCR 처리 로직 분리
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body("파일이 없습니다.");
+        }
+
+        try {
+            HttpHeaders imgHeaders = new HttpHeaders();
+            imgHeaders.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+            ByteArrayResource resource = new ByteArrayResource(file.getBytes()) {
+                @Override
+                public String getFilename() {
+                    // analyze에서 사용한 getFileName 대신 file의 것을 사용
+                    return file.getOriginalFilename();
+                }
+            };
+
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("file", resource);
+            HttpEntity<MultiValueMap<String, Object>> imageRequest = new HttpEntity<>(body, imgHeaders);
+
+            ResponseEntity<Map> ocrRes = new RestTemplate().postForEntity("http://localhost:5050/ocr", imageRequest, Map.class);
+            String text = (String) ocrRes.getBody().get("text");
+
+            return ResponseEntity.ok(Map.of("text", text));
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("OCR 실패: " + e.getMessage());
+        }
+    }
+
 
     @PostMapping("/analyze")
     @Transactional
@@ -89,32 +121,10 @@ public class DiaryController {
                 .orElseThrow(() -> new RuntimeException("일기 없음"));
 
         String fullText = diary.getDiaryContent();
-        if (diary.getFileName() != null) {
-            Path path = Paths.get(diaryDir, diary.getFileName());
-            try {
-                byte[] fileBytes = Files.readAllBytes(path);
 
-                HttpHeaders imgHeaders = new HttpHeaders();
-                imgHeaders.setContentType(MediaType.MULTIPART_FORM_DATA);
-
-                ByteArrayResource resource = new ByteArrayResource(fileBytes) {
-                    @Override
-                    public String getFilename() {
-                        return diary.getFileName();
-                    }
-                };
-
-                MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-                body.add("file", resource);
-                HttpEntity<MultiValueMap<String, Object>> imageRequest = new HttpEntity<>(body, imgHeaders);
-
-                ResponseEntity<Map> ocrRes = new RestTemplate().postForEntity("http://localhost:5050/ocr", imageRequest, Map.class);
-                fullText = (String) ocrRes.getBody().get("text");
-
-            } catch (IOException e) {
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("OCR 실패: " + e.getMessage());
-            }
-        }
+        /*
+        OCR 로직을 위의 /extract로 뺌
+         */
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
