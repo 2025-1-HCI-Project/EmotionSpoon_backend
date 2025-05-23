@@ -150,13 +150,12 @@ public class DiaryController {
     @GetMapping("/events")
     public ResponseEntity<?> getDiaryEvents() {
         List<Diary> diaries = diaryRepository.findAll();
-        List<DiaryEventDTO> eventList = new ArrayList<>();
 
-        for (Diary diary : diaries) {
+        List<DiaryEventDTO> eventList = diaries.stream().map(diary -> {
             List<Playlist> playlists = playlistRepository.findAllByDiaryId(diary.getId());
             Playlist playlist = playlists.isEmpty() ? null : playlists.get(0);
 
-            eventList.add(DiaryEventDTO.builder()
+            return DiaryEventDTO.builder()
                     .diaryId(diary.getId())
                     .date(diary.getDate().toLocalDate().toString())
                     .title(diary.getContent())
@@ -165,8 +164,9 @@ public class DiaryController {
                     .fileName(diary.getFileName())
                     .song(playlist != null ? playlist.getSong() : null)
                     .artist(playlist != null ? playlist.getArtist() : null)
-                    .build());
-        }
+                    .link(playlist != null ? playlist.getLink() : null)
+                    .build();
+        }).collect(Collectors.toList());
 
         return ResponseEntity.ok(eventList);
     }
