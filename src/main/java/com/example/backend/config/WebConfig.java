@@ -17,7 +17,11 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:3000", "http://walab.handong.edu/ice")  // ✅ 여기 수정
+                .allowedOrigins(
+                        "http://localhost:3000",
+                        "http://walab.handong.edu",
+                        "https://emotionspoon1.netlify.app"
+                )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowCredentials(true);
     }
@@ -36,6 +40,5 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/diary/**")
                 .addResourceLocations("file:" + System.getProperty("user.dir") + "/src/main/resources/templates/diary/");
     }
-
 
 }

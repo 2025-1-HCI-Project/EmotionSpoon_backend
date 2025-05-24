@@ -43,7 +43,7 @@ dependencies {
 
 }
 bootWar {
-	archiveBaseName = 'ice_1'
+	archiveBaseName = 'Ice'
 	archiveVersion = '0.0.1'
 }
 
