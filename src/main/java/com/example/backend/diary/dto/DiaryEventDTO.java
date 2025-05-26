@@ -15,6 +15,8 @@ public class DiaryEventDTO {
     private Integer diaryType;
     private String fileName;
 
+    private String sentiment;
+
     private String song;
     private String artist;
     private String link;

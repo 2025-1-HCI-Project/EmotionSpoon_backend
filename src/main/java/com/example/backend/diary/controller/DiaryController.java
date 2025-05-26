@@ -172,6 +172,7 @@ public class DiaryController {
                     .diary(diary.getDiaryContent())
                     .diaryType(diary.getDiaryType())
                     .fileName(diary.getFileName())
+                    .sentiment(playlist != null ? playlist.getSentiment() : null)
                     .song(playlist != null ? playlist.getSong() : null)
                     .artist(playlist != null ? playlist.getArtist() : null)
                     .link(playlist != null ? playlist.getLink() : null)
@@ -180,5 +181,4 @@ public class DiaryController {
 
         return ResponseEntity.ok(eventList);
     }
-
 }
