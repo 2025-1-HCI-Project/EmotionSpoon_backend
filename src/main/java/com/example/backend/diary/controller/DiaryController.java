@@ -175,6 +175,8 @@ public class DiaryController {
                     .song(playlist != null ? playlist.getSong() : null)
                     .artist(playlist != null ? playlist.getArtist() : null)
                     .link(playlist != null ? playlist.getLink() : null)
+                    .m_id(diary.getMember().getId())
+                    .sentiment(diary.getSentiment())
                     .build();
         }).collect(Collectors.toList());
 
